@@ -1,0 +1,46 @@
+[audio]
+sample_rate = 16000
+channels = 1
+audio_format = "pcm_s16le"
+
+[soniox]
+ws_url = "wss://stt-rt.soniox.com/transcribe-websocket"
+model = "stt-rt-v4"
+language_hints = ["en"]
+enable_endpoint_detection = true
+
+[translation]
+source_language = "en"
+target_language = "cs"
+display_only_final_translations = true
+
+[trigger]
+magic_phrase = "get ready"
+magic_phrase_case_insensitive = true
+start_translation_phrase = "from czech to english"
+detection_buffer_chars = 600
+clear_buffers_on_trigger = true
+trigger1_audio_file = "to-your-service.mp3"
+trigger2_audio_file = "translate.mp3"
+trigger1_message = "To your service, Mr. Director!"
+trigger2_message = "I'll be happy to translate every word you say!"
+
+[ui]
+max_lines_on_screen = 12
+max_line_chars_approx = 42
+window_resizable = true
+window_zoomed = true
+window_keep_on_top = true
+window_background_color = "black"
+window_text_color = "white"
+window_font_family = "Segoe UI"
+window_font_size = 68
+window_font_weight = "bold"
+window_text_padding_x = 70
+window_text_padding_y = 60
+max_display_chars = 1200
+
+[performance]
+ui_tick_ms = 60
+audio_queue_max_chunks = 300
+clear_subtitles_after_seconds = 5.0
