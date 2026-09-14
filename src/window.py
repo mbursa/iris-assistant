@@ -1,5 +1,3 @@
-import time
-
 from config import Settings
 from subtitles import SubtitleState
 
@@ -9,34 +7,39 @@ from subtitles import SubtitleState
 # =============================================================================
 
 class SubtitleWindow:
-    """
-    A simple Tkinter window that is:
-      - a normal window (not "fullscreen" exclusive mode)
-      - maximized over the screen
-      - shows large centered text over a blank background
-    """
+    # Owns the Tk window that renders live subtitle lines.
+    # --------------------------------------------------------------------------
+    # The window remains responsive because background workers update shared state
+    # while all Tk operations remain on the Tk thread.
+    # --------------------------------------------------------------------------
 
     def __init__(self, settings: Settings) -> None:
+        # Creates and configures the subtitle window widgets.
+        # ----------------------------------------------------------------------
+        # @param settings: Validated UI configuration applied to Tk widgets.
+        # @return: None.
+        # ----------------------------------------------------------------------
+        # import Tk lazily so non-UI modules can be loaded in headless contexts.
         import tkinter as tk
 
+        # retain configuration for later layout and style updates.
         self.settings = settings
 
+        # initialize the top-level window before adding child widgets.
         self.tk = tk.Tk()
         self.tk.title("Iris - Director's Assistant")
 
-        # initial small window size (width x height)
+        # establish a usable fallback size before optional maximization.
         self.tk.geometry("600x300")
 
-        # allow resizing (you can set False to lock it)
+        # apply the configured user-resize policy.
         self.tk.resizable(self.settings.ui.window_resizable, self.settings.ui.window_resizable)
 
-        # background
+        # apply the configured background before creating text widgets.
         self.tk.configure(bg=self.settings.ui.window_background_color)
 
         if self.settings.ui.window_zoomed:
-            # "Maximized" window behavior on Windows:
-            # - state('zoomed') works on Windows Tk builds
-            # - fallback: geometry to screen size if zoomed fails
+            # prefer native maximization and retain a platform-neutral fallback.
             try:
                 self.tk.state("zoomed")
             except Exception:
@@ -45,18 +48,20 @@ class SubtitleWindow:
                 self.tk.geometry(f"{w}x{h}+0+0")
             #end try
 
-            # keep it on top (subtitle style)
+            # retain subtitle visibility when the configured overlay mode is enabled.
             if self.settings.ui.window_keep_on_top:
                 self.tk.attributes("-topmost", True)
         #end if
 
-        # escape to quit quickly on ESC or Ctrl+C
+        # bind common exit shortcuts to destroy the top-level window.
         self.tk.bind_all("<Escape>", lambda e: self.tk.destroy())
         self.tk.bind_all("<Control-c>", lambda e: self.tk.destroy())
         self.tk.bind_all("<Control-C>", lambda e: self.tk.destroy())
 
+        # retain a Tk variable for compatibility with existing window state.
         self.var = tk.StringVar(value="")
 
+        # create the styled text widget that renders subtitle snapshots.
         self.text = tk.Text(
             self.tk,
             bg=self.settings.ui.window_background_color,
@@ -77,10 +82,9 @@ class SubtitleWindow:
             padx=self.settings.ui.window_text_padding_x,
             pady=self.settings.ui.window_text_padding_y,
         )
-        #text.pack(expand=True, fill="both")
         self.text.tag_configure("center", justify="center")
 
-        # define styles
+        # define tags that distinguish historical and newest subtitle lines.
         self.text.tag_configure("normal", foreground="white")
         self.text.tag_configure("last", foreground="yellow")
     #end def
@@ -88,14 +92,20 @@ class SubtitleWindow:
 
     #def set_text(self, s: str) -> None:
     def set_text(self, lines) -> None:
-        """Replace the currently displayed subtitle text."""
-        #self.var.set(s)
+        # Replaces the rendered subtitle content while preserving line styles.
+        # ----------------------------------------------------------------------
+        # @param lines: Snapshot of subtitle line dictionaries in display order.
+        # @return: None.
+        # ----------------------------------------------------------------------
+        # enable edits only long enough to atomically replace the text widget content.
         
         self.text.config(state="normal")
         self.text.delete("1.0", "end")
 
+        # retain an empty disabled widget when there is no subtitle content.
         if (len(lines)==0): return
 
+        # apply the newest-line tag only to content marked current by shared state.
         for line in lines:
             if not line['last']: 
                 self.text.insert("end", line['text'] + "\n", "center normal")
@@ -108,12 +118,14 @@ class SubtitleWindow:
 
 
     def refresh_wraplength(self) -> None:
-        """
-        Update wrap length dynamically so the label wraps nicely if the window is resized.
-        """
+        # Recalculates text-widget width after the window changes size.
+        # ----------------------------------------------------------------------
+        # @return: None.
+        # ----------------------------------------------------------------------
+        # derive character capacity from available width while preserving padding.
         try:
             width = self.tk.winfo_width()
-            # keep a margin for padding; this affects wrapping aesthetics
+            # retain padding when converting pixel width into character capacity.
             self.text.configure(wrap="word")
             wrap_length = max(200, width - 2 * self.settings.ui.window_text_padding_x)
             self.text.configure(width=max(1, int(wrap_length / max(1, self.settings.ui.window_font_size / 2))))
@@ -123,46 +135,25 @@ class SubtitleWindow:
 
 
     def run(self, subtitles: SubtitleState, interval_ms: int) -> None:
-        """
-        Run the Tkinter main loop and call tick_fn periodically.
-        tick_fn must not block; it should be a quick subtitles read and UI update.
-        """
+        # Runs the Tk event loop and periodically renders subtitle state.
+        # ----------------------------------------------------------------------
+        # @param subtitles: Thread-safe subtitle state read on each UI tick.
+        # @param interval_ms: Delay between UI ticks in milliseconds.
+        # @return: None.
+        # ----------------------------------------------------------------------
 
         def ui_tick() -> None:
-            """
-            Runs on the Tk thread periodically.
-            - Applies current text.
-            - Clears subtitles after a few seconds of "no new final translation tokens".
-            """
+            # Renders a fresh subtitle snapshot and schedules the next UI update.
+            # ------------------------------------------------------------------
+            # @return: None.
+            # ------------------------------------------------------------------
+            # update wrapping before reading lines so resize changes apply immediately.
             self.refresh_wraplength()
 
-            now = time.time()
-
-            ## clear display if it's been quiet for too long
-            #if (now - state.last_display_update_ts) > params.CLEAR_SUBTITLES_AFTER_SECONDS:
-            #    subtitles.clear()
-            #    self.set_text("")
-            #else: 
-            #    # otherwise show whatever the state currently holds
-            #    self.set_text(state.display_text)
-            ##end if
-
-            #self.set_text(subtitles.displayed_text())
-
-            '''
-            # Make sure layout/wrapping has been computed
-            self.text.update_idletasks()
-            # Count displaylines between 1.0 and end-1c
-            disp_lines = self.text.count("1.0", "end-1c", "displaylines")
-            if (disp_lines == None): 
-                disp_lines = 0 
-            else:
-                disp_lines = int(disp_lines[0])
-            print('disp_lines',disp_lines)
-            self.set_text(subtitles.lines(disp_lines))
-            '''
+            # render the current thread-safe line snapshot without blocking Tk.
             self.set_text(subtitles.lines())
 
+            # stop scheduling work after the window has been destroyed.
             if self.tk.winfo_exists():
                 self.tk.after(interval_ms, ui_tick)
         #end def

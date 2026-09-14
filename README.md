@@ -60,16 +60,11 @@ Required:
 Common environment overrides:
 
 - IRIS_CONFIG_FILE
-- IRIS_AUDIO_SAMPLE_RATE
-- IRIS_AUDIO_CHANNELS
-- IRIS_SONIOX_WS_URL
-- IRIS_SONIOX_MODEL
 - IRIS_SONIOX_LANGUAGE_HINTS (comma-separated, for example en,cs)
 - IRIS_TRANSLATION_SOURCE_LANGUAGE
 - IRIS_TRANSLATION_TARGET_LANGUAGE
 - IRIS_DISPLAY_ONLY_FINAL_TRANSLATIONS
 - IRIS_WINDOW_FONT_SIZE
-- IRIS_UI_TICK_MS
 
 For a complete reference of configuration options, see `doc/configuration.md` file.
 
