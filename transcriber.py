@@ -1,4 +1,15 @@
-# Launches the live, speaker-aware microphone transcriber.
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "numpy",
+#     "pygame",
+#     "sounddevice",
+#     "websockets",
+# ]
+# ///
+
+# Launches the live, speaker-aware microphone transcriber through uv.
 
 from __future__ import annotations
 
