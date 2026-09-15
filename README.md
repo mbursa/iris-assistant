@@ -20,21 +20,30 @@ The app captures microphone audio, streams it to Soniox over WebSocket, and show
 ## Installation
 
 1. Clone this repository.
-2. Create and activate a virtual environment.
-3. Install Python dependencies.
-
-```bash
-python -m venv .python
-source .python/bin/activate
-.python/bin/pip install -U pip
-.python/bin/pip install numpy sounddevice websockets pygame
-```
-
-If sounddevice fails to install or run, install system audio libraries first:
+2. Ensure the system audio libraries are available.
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y portaudio19-dev
+```
+
+Choose one of the following Python environment setups.
+
+### Option 1: uv
+
+Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/). The
+dependencies are declared in both entry-point scripts and will be installed
+automatically by `uv` when the application starts.
+
+### Option 2: traditional venv
+
+Create and activate a virtual environment, then install the dependencies:
+
+```bash
+python -m venv .python
+source .python/bin/activate
+.python/bin/python -m pip install --upgrade pip
+.python/bin/python -m pip install numpy sounddevice websockets pygame
 ```
 
 ## Configuration
@@ -51,7 +60,7 @@ Quick setup:
 1. Copy .env.example to .env
 2. Set SONIOX_API_KEY in .env
 3. Optional: copy config.toml.example to config.toml and tune values
-4. Run python translator.py
+4. Run the translator using either the `uv` or `venv` command below.
 
 Required:
 
@@ -70,16 +79,30 @@ For a complete reference of configuration options, see `doc/configuration.md` fi
 
 ## Run
 
-From the project root, activate your virtual environment first:
+From the project root, run either executable entry point with `uv`. It reads
+the dependencies declared in the script, creates or reuses its managed
+environment, and starts the application:
+
+```bash
+./translator.py
+# or, for console transcription:
+./transcriber.py
+```
+
+The scripts can also be launched explicitly with `uv run`:
+
+```bash
+uv run translator.py
+uv run transcriber.py
+```
+
+If you chose the traditional `venv` setup, activate it first and run the
+scripts with its Python interpreter:
 
 ```bash
 source .python/bin/activate
-```
-
-Then run:
-
-```bash
-.python/bin/python translator.py
+python translator.py
+python transcriber.py
 ```
 
 Press Escape/Crtl+C to close the subtitle window.

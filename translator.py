@@ -1,4 +1,15 @@
-# Launches the live microphone-to-subtitle translator.
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "numpy",
+#     "pygame",
+#     "sounddevice",
+#     "websockets",
+# ]
+# ///
+
+# Launches the live microphone-to-subtitle translator through uv.
 
 from __future__ import annotations
 
