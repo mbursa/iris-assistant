@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import queue
 import sys
 import threading
@@ -13,17 +14,49 @@ import subtitles
 import transcription
 import window
 from config import Settings, load_settings
+from languages import resolve_translation_languages
 
 
-def translator_main() -> int:
+def translator_main(argv: Sequence[str] | None = None) -> int:
     # Starts microphone translation, Soniox streaming, and the subtitle UI.
     # --------------------------------------------------------------------------
     # The UI owns the foreground thread while the reusable Soniox worker runs in a
     # daemon thread and consumes frames from the shared microphone component.
+    # @param argv: Optional command-line arguments; None reads the process arguments.
     # @return: Process exit code.
     # --------------------------------------------------------------------------
-    # load validated translator settings before allocating runtime components.
-    settings = load_settings()
+    # require a per-run source while allowing the target to follow direction defaults.
+    parser = argparse.ArgumentParser(
+        description="Translate microphone audio with Soniox real-time translation."
+    )
+    parser.add_argument(
+        "--source-lang",
+        required=True,
+        metavar="LANG",
+        help="Spoken source language (required; 'cz' is normalized to 'cs').",
+    )
+    parser.add_argument(
+        "--target-lang",
+        metavar="LANG",
+        help="Translation target (default: en for Czech source, otherwise cs).",
+    )
+    # parse the complete direction before any configuration or hardware work.
+    args = parser.parse_args(argv)
+
+    # normalize the requested direction before loading non-language configuration.
+    try:
+        source_language, target_language = resolve_translation_languages(
+            args.source_lang,
+            args.target_lang,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+
+    # load validated non-language settings with the resolved runtime direction.
+    settings = load_settings(
+        source_language=source_language,
+        target_language=target_language,
+    )
     print(_safe_settings_summary(settings))
 
     # create shared transport and display state for the application components.
@@ -81,6 +114,7 @@ def transcriber_main(argv: Sequence[str] | None = None) -> int:
         "Transcriber options: "
         f"sample_rate={options.sample_rate}, "
         f"channels={options.channels}, "
+        f"source_language={options.source_language}, "
         f"device={options.device}, "
         f"queue_max_chunks={options.queue_max_chunks}, "
         f"output_file={options.output_file}",
@@ -149,10 +183,11 @@ def _safe_settings_summary(settings: Settings) -> str:
 #end def
 
 
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     # Preserves the original translator entry-point name for existing callers.
     # --------------------------------------------------------------------------
+    # @param argv: Optional command-line arguments; None reads the process arguments.
     # @return: Process exit code from the translator application.
     # --------------------------------------------------------------------------
-    return translator_main()
+    return translator_main(argv)
 #end def

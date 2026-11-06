@@ -13,6 +13,7 @@ from typing import Any, Mapping, TextIO
 
 import soniox
 from config import read_dotenv
+from languages import normalize_language_code
 
 
 # Default Soniox real-time WebSocket endpoint.
@@ -41,7 +42,7 @@ class TranscriberOptions:
     # @var model: Soniox speech-to-text model identifier.
     # @var sample_rate: Microphone sampling frequency in Hz.
     # @var channels: Number of microphone channels.
-    # @var language_hints: Preferred speech-recognition languages.
+    # @var source_language: Required speech-recognition language for this run.
     # @var enable_endpoint_detection: Whether pauses force early finalization.
     # @var device: Optional SoundDevice input device index or name.
     # @var output_file: Optional append-only transcript file path.
@@ -58,8 +59,8 @@ class TranscriberOptions:
     sample_rate: int = DEFAULT_SAMPLE_RATE
     # Number of captured microphone channels.
     channels: int = DEFAULT_CHANNELS
-    # Preferred recognition languages in priority order.
-    language_hints: tuple[str, ...] = ("en",)
+    # Required recognition language selected at startup.
+    source_language: str = ""
     # Whether Soniox should finalize tokens after detected pauses.
     enable_endpoint_detection: bool = False
     # Optional SoundDevice input device index or name.
@@ -84,6 +85,8 @@ class TranscriberOptions:
             raise ValueError("Soniox WebSocket URL cannot be empty.")
         if not self.model:
             raise ValueError("Soniox model cannot be empty.")
+        if not self.source_language:
+            raise ValueError("Source language cannot be empty.")
         if self.sample_rate <= 0:
             raise ValueError("Microphone sample rate must be greater than zero.")
         if self.channels <= 0:
@@ -229,11 +232,10 @@ def load_transcriber_options(argv: Sequence[str] | None = None) -> TranscriberOp
         default=_environment_int(env, "SONIOX_SAMPLE_RATE", DEFAULT_SAMPLE_RATE),
     )
     parser.add_argument(
-        "--language-hint",
-        action="append",
-        default=None,
+        "--source-lang",
+        required=True,
         metavar="LANG",
-        help="Preferred speech language; repeat for multilingual meetings.",
+        help="Spoken language to transcribe (required; 'cz' is normalized to 'cs').",
     )
     parser.add_argument("--model", default=env.get("SONIOX_MODEL", DEFAULT_MODEL))
     parser.add_argument("--ws-url", default=env.get("SONIOX_WS_URL", DEFAULT_WS_URL))
@@ -248,23 +250,20 @@ def load_transcriber_options(argv: Sequence[str] | None = None) -> TranscriberOp
         help="Finalize after pauses sooner; leaving this off gives diarization more context.",
     )
     parser.add_argument("--list-devices", action="store_true", help="List audio devices and exit.")
+    # parse the required runtime language together with optional session controls.
     args = parser.parse_args(argv)
 
-    # use comma-separated environment hints only when CLI hints were not supplied.
-    language_hints = args.language_hint
-    if language_hints is None:
-        language_hints = [
-            value.strip()
-            for value in env.get("SONIOX_LANGUAGE_HINTS", "en").split(",")
-            if value.strip()
-        ]
-
+    # normalize the required recognition language before building typed options.
+    try:
+        source_language = normalize_language_code(args.source_lang)
+    except ValueError as error:
+        parser.error(str(error))
     return TranscriberOptions(
         api_key=args.api_key.strip(),
         ws_url=args.ws_url,
         model=args.model,
         sample_rate=args.sample_rate,
-        language_hints=tuple(language_hints),
+        source_language=source_language,
         enable_endpoint_detection=args.enable_endpoint_detection,
         device=args.device,
         output_file=args.output_file,
@@ -285,7 +284,7 @@ def build_session_config(options: TranscriberOptions) -> dict[str, Any]:
         audio_format="pcm_s16le",
         sample_rate=options.sample_rate,
         channels=options.channels,
-        language_hints=options.language_hints,
+        language_hints=(options.source_language,),
         enable_endpoint_detection=options.enable_endpoint_detection,
         enable_speaker_diarization=True,
         enable_language_identification=True,
