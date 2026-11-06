@@ -34,7 +34,6 @@ class SonioxConfig:
     # --------------------------------------------------------------------------
     # @var ws_url: Real-time WebSocket endpoint.
     # @var model: Soniox recognition model identifier.
-    # @var language_hints: Preferred recognition languages.
     # @var enable_endpoint_detection: Whether pause detection finalizes speech.
     # @var api_key: Credential used to authenticate the stream.
     # --------------------------------------------------------------------------
@@ -42,8 +41,6 @@ class SonioxConfig:
     ws_url: str = "wss://stt-rt.soniox.com/transcribe-websocket"
     # Default Soniox model selected by the translator.
     model: str = "stt-rt-preview"
-    # Default preferred spoken language.
-    language_hints: tuple[str, ...] = ("en",)
     # Default pause-based finalization behavior.
     enable_endpoint_detection: bool = True
     # API key supplied by configuration rather than source control.
@@ -58,10 +55,10 @@ class TranslationConfig:
     # @var target_language: Language rendered in the subtitle window.
     # @var display_only_final_translations: Whether provisional tokens are hidden.
     # --------------------------------------------------------------------------
-    # Expected language of original speech tokens.
-    source_language: str = "en"
-    # Desired language of generated translation tokens.
-    target_language: str = "cs"
+    # Expected language of original speech tokens, supplied at startup.
+    source_language: str
+    # Desired language of generated translation tokens, resolved at startup.
+    target_language: str
     # Avoid displaying tokens that Soniox can still revise.
     display_only_final_translations: bool = True
 
@@ -145,19 +142,19 @@ class PerformanceConfig:
 class Settings:
     # Aggregates all validated application configuration sections.
     # --------------------------------------------------------------------------
+    # @var translation: Runtime translation direction and filtering configuration.
     # @var audio: Audio capture configuration.
     # @var soniox: Soniox connection and recognition configuration.
-    # @var translation: Translation filtering configuration.
     # @var trigger: Trigger-buffer configuration.
     # @var ui: Subtitle-window configuration.
     # @var performance: Queue and UI timing configuration.
     # --------------------------------------------------------------------------
+    # Runtime translation direction and display-filtering configuration.
+    translation: TranslationConfig
     # Audio capture configuration section.
     audio: AudioConfig = AudioConfig()
     # Soniox streaming configuration section.
     soniox: SonioxConfig = SonioxConfig()
-    # Translation display configuration section.
-    translation: TranslationConfig = TranslationConfig()
     # Trigger-processing configuration section.
     trigger: TriggerConfig = TriggerConfig()
     # Subtitle-window configuration section.
@@ -181,8 +178,10 @@ class Settings:
             raise ValueError("soniox.model cannot be empty")
         if not self.soniox.api_key:
             raise ValueError("SONIOX_API_KEY is required")
+        if not self.translation.source_language:
+            raise ValueError("translation source language cannot be empty")
         if not self.translation.target_language:
-            raise ValueError("translation.target_language cannot be empty")
+            raise ValueError("translation target language cannot be empty")
         if self.trigger.detection_buffer_chars <= 0:
             raise ValueError("trigger.detection_buffer_chars must be > 0")
         if self.ui.max_lines_on_screen <= 0:
@@ -237,17 +236,6 @@ def _to_float(value: str, *, default: float) -> float:
         return float(value.strip())
     except (TypeError, ValueError):
         return default
-
-
-def _parse_list(value: str) -> tuple[str, ...]:
-    # Converts a comma-separated environment value into non-empty entries.
-    # --------------------------------------------------------------------------
-    # @param value: Raw comma-separated value.
-    # @return: Trimmed non-empty entries in source order.
-    # --------------------------------------------------------------------------
-    # normalize individual entries before excluding empty values.
-    parts = [p.strip() for p in value.split(",")]
-    return tuple(p for p in parts if p)
 
 
 def read_dotenv(path: Path) -> dict[str, str]:
@@ -309,10 +297,13 @@ def _pick(m: Mapping[str, Any], key: str, default: Any) -> Any:
     return default if value is None else value
 
 
-def load_settings() -> Settings:
+def load_settings(*, source_language: str, target_language: str) -> Settings:
     # Loads, overlays, and validates all application settings.
     # --------------------------------------------------------------------------
     # Environment values override dotenv values, which override the optional config file.
+    # Translation direction is supplied separately by the command-line boundary.
+    # @param source_language: Normalized source language selected for this run.
+    # @param target_language: Normalized target language selected for this run.
     # @return: Fully validated immutable settings object.
     # @throws ValueError: If resulting settings fail validation.
     # --------------------------------------------------------------------------
@@ -347,21 +338,10 @@ def load_settings() -> Settings:
         audio_format=env.get("IRIS_AUDIO_FORMAT", str(_pick(audio_cfg, "audio_format", AudioConfig.audio_format))),
     )
 
-    # preserve a typed tuple regardless of whether hints originate in TOML or env.
-    language_hints_default = _pick(soniox_cfg, "language_hints", list(SonioxConfig.language_hints))
-    language_hints: tuple[str, ...]
-    if "IRIS_SONIOX_LANGUAGE_HINTS" in env:
-        language_hints = _parse_list(env["IRIS_SONIOX_LANGUAGE_HINTS"])
-    elif isinstance(language_hints_default, list):
-        language_hints = tuple(str(x) for x in language_hints_default)
-    else:
-        language_hints = SonioxConfig.language_hints
-
-    # construct the Soniox streaming section after resolving language hints.
+    # construct the Soniox streaming section from non-language configuration.
     soniox = SonioxConfig(
         ws_url=env.get("IRIS_SONIOX_WS_URL", str(_pick(soniox_cfg, "ws_url", SonioxConfig.ws_url))),
         model=env.get("IRIS_SONIOX_MODEL", str(_pick(soniox_cfg, "model", SonioxConfig.model))),
-        language_hints=language_hints,
         enable_endpoint_detection=_to_bool(
             env.get(
                 "IRIS_SONIOX_ENABLE_ENDPOINT_DETECTION",
@@ -372,16 +352,10 @@ def load_settings() -> Settings:
         api_key=env.get("SONIOX_API_KEY", str(_pick(soniox_cfg, "api_key", SonioxConfig.api_key))).strip(),
     )
 
-    # construct the translation filtering section from layered values.
+    # combine the CLI-owned direction with the configurable token-finality policy.
     translation = TranslationConfig(
-        source_language=env.get(
-            "IRIS_TRANSLATION_SOURCE_LANGUAGE",
-            str(_pick(translation_cfg, "source_language", TranslationConfig.source_language)),
-        ),
-        target_language=env.get(
-            "IRIS_TRANSLATION_TARGET_LANGUAGE",
-            str(_pick(translation_cfg, "target_language", TranslationConfig.target_language)),
-        ),
+        source_language=source_language,
+        target_language=target_language,
         display_only_final_translations=_to_bool(
             env.get(
                 "IRIS_DISPLAY_ONLY_FINAL_TRANSLATIONS",

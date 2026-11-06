@@ -1,6 +1,12 @@
 # Configuration Reference
 
-This document lists all active configuration options loaded by the app from [src/config.py](src/config.py).
+This document lists all active configuration options loaded by the app from [src/config.py](../src/config.py).
+
+Translation and transcription languages are runtime command-line arguments, not
+configuration-file or environment settings. Both entry points require
+`--source-lang`. The translator additionally accepts `--target-lang`; when it is
+omitted, Czech defaults to English and every other source defaults to Czech.
+`cz` is accepted as an alias and normalized to `cs`.
 
 ## Load Order
 
@@ -38,10 +44,6 @@ Configuration precedence (last wins):
 - `soniox.model` (env: `IRIS_SONIOX_MODEL`, default: `stt-rt-preview`)
 : Soniox realtime model name.
 
-- `soniox.language_hints` (env: `IRIS_SONIOX_LANGUAGE_HINTS`, default: `["en"]`)
-: Preferred spoken language hints for speech recognition.
-: In env form use comma-separated values, for example `en,cs`.
-
 - `soniox.enable_endpoint_detection` (env: `IRIS_SONIOX_ENABLE_ENDPOINT_DETECTION`, default: `true`)
 : Enables endpoint detection to help finalize utterances.
 
@@ -49,12 +51,6 @@ Configuration precedence (last wins):
 : API key used by Soniox client auth.
 
 ## Translation Options
-
-- `translation.source_language` (env: `IRIS_TRANSLATION_SOURCE_LANGUAGE`, default: `en`)
-: Expected source language in translation tokens to accept.
-
-- `translation.target_language` (env: `IRIS_TRANSLATION_TARGET_LANGUAGE`, default: `cs`)
-: Target language code expected in translation tokens.
 
 - `translation.display_only_final_translations` (env: `IRIS_DISPLAY_ONLY_FINAL_TRANSLATIONS`, default: `true`)
 : If enabled, only final translation tokens are shown.

@@ -6,12 +6,9 @@ audio_format = "pcm_s16le"
 [soniox]
 ws_url = "wss://stt-rt.soniox.com/transcribe-websocket"
 model = "stt-rt-v4"
-language_hints = ["en"]
 enable_endpoint_detection = true
 
 [translation]
-source_language = "en"
-target_language = "cs"
 display_only_final_translations = true
 
 [trigger]

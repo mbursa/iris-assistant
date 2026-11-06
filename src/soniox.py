@@ -129,7 +129,7 @@ def build_soniox_config(settings: Settings) -> dict[str, Any]:
         audio_format=settings.audio.audio_format,
         sample_rate=settings.audio.sample_rate,
         channels=settings.audio.channels,
-        language_hints=settings.soniox.language_hints,
+        language_hints=(settings.translation.source_language,),
         enable_endpoint_detection=settings.soniox.enable_endpoint_detection,
         translation={
             "type": "one_way",
