@@ -20,7 +20,10 @@ The app captures microphone audio, streams it to Soniox over WebSocket, and show
 ## Installation
 
 1. Clone this repository.
-2. Install the system audio, Tk, and Python build dependencies.
+
+### Ubuntu
+
+Install the system audio, Tk, and Python build dependencies:
 
 ```bash
 sudo apt-get update
@@ -52,13 +55,35 @@ automatically by `uv` when the application starts.
 
 ### Option 2: traditional venv
 
-Create and activate a virtual environment, then install the dependencies:
+On Ubuntu, create and activate a virtual environment, then install the dependencies:
 
 ```bash
 python -m venv .python
 source .python/bin/activate
 .python/bin/python -m pip install --upgrade pip
 .python/bin/python -m pip install numpy sounddevice websockets pygame
+```
+
+### Windows
+
+1. Install Python 3.11 or newer from [python.org](https://www.python.org/downloads/windows/).
+   The standard Windows installer includes Tk support; if customizing the
+   installation, include Tcl/Tk support so the `tkinter` module is available.
+2. Install Git for Windows if you need it to clone the repository.
+3. No separate SDL2 or PortAudio development packages are needed for the usual
+   Windows installation; the Python packages provide the required runtime
+   libraries.
+4. Choose either `uv` or a virtual environment below. To check Tk support, run
+   `py -3 -m tkinter`; a small demo window should open.
+
+Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) for
+Windows and use the `uv` commands in the Run section. For a virtual environment,
+run these commands in PowerShell from the repository folder:
+
+```powershell
+py -3 -m venv .python
+.\.python\Scripts\python.exe -m pip install --upgrade pip
+.\.python\Scripts\python.exe -m pip install numpy sounddevice websockets pygame
 ```
 
 ## Configuration
@@ -76,6 +101,8 @@ Quick setup:
 2. Set SONIOX_API_KEY in .env
 3. Optional: copy config.toml.example to config.toml and tune values
 4. Run the translator with its source language using either the `uv` or `venv` command below.
+
+In Windows PowerShell, use `Copy-Item .env.example .env` to create the `.env` file.
 
 Required:
 
@@ -115,6 +142,14 @@ scripts with its Python interpreter:
 source .python/bin/activate
 python translator.py --source-lang cs
 python transcriber.py --source-lang cs
+```
+
+On Windows, run the `uv` commands above from PowerShell. If you chose `venv`,
+use its interpreter directly:
+
+```powershell
+.\.python\Scripts\python.exe translator.py --source-lang cs
+.\.python\Scripts\python.exe transcriber.py --source-lang cs
 ```
 
 Both entry points require `--source-lang`. The translator also accepts an
