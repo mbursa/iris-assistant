@@ -20,12 +20,27 @@ The app captures microphone audio, streams it to Soniox over WebSocket, and show
 ## Installation
 
 1. Clone this repository.
-2. Ensure the system audio libraries are available.
+2. Install the system audio, Tk, and Python build dependencies.
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y portaudio19-dev
+sudo apt-get install -y \
+  gcc \
+  libsdl2-2.0-0 \
+  libsdl2-dev \
+  libportaudio2 \
+  portaudio19-dev \
+  python3-dev \
+  python3-tk \
+  python3-venv
 ```
+
+`python3-tk` provides `tkinter` for Ubuntu's system Python. `tkinter` is an
+optional Python standard-library component, not a package that `uv` installs
+from PyPI. If you use a uv-managed Python and see
+`ModuleNotFoundError: No module named 'tkinter'`, run the app with an installed
+Python that includes Tk. For example, if `/usr/bin/python3` is Python 3.11 or
+newer, use `uv run --python /usr/bin/python3 translator.py --source-lang cs`.
 
 Choose one of the following Python environment setups.
 
